@@ -3,7 +3,12 @@ from dataclasses import dataclass
 
 
 @dataclass
-class LuxLevel : k:int; v:int
+class LuxLevel : 
+    k:int; v:int
+    
+    def __ft__(moi):
+        return P("%d" % moi.v)
+        
 
 @dataclass
 class LedState : 
@@ -23,8 +28,8 @@ luxdb = database("lux.db")
 luxlevel = luxdb.create(LuxLevel, pk="k")
 ledstate = luxdb.create(LedState, pk="k")
 
-luxlevel.insert(LuxLevel(v=1))
-ledstate.insert(LedState(v=1))
+#luxlevel.insert(LuxLevel(v=1))
+#ledstate.insert(LedState(v=1))
 
 val = 0
 
@@ -63,7 +68,7 @@ body = Body(
         Div(
           # H3("is it day yet ?"),
           Img(src="img/isitdayyet.png", style="width: 100%"),
-          P("in function of the photoresistence value"),
+          Div(luxlevel(where="k=1")[0], id="lux-level"),
           style="height: 50%; width: 50%; float:left"
         )
       ),
@@ -149,12 +154,18 @@ async def ws(op:str, payload: str) :
     
     if op == 'ledstate':
         ledstate.update(LedState(k=1, v=payload))
+        
+        for u in users.values(): 
+            await u(Div(ledstate(where="k=1")[0], id="led-state"))
+
     elif op == 'luxlevel' :
         luxlevel.update(LuxLevel(k=1, v=payload))
+        
+        for u in users.values(): 
+            await u(Div(luxlevel(where="k=1")[0], id="lux-level"))
     else :
         return
     
-    for u in users.values(): 
-        await u(Div(ledstate(where="k=1")[0], id="led-state"))
+    
 
 serve()
