@@ -1,5 +1,6 @@
 from fasthtml.common import *
 from dataclasses import dataclass
+import paho.mqtt.client as mqtt
 
 
 @dataclass
@@ -7,7 +8,18 @@ class LuxLevel :
     k:int; v:int
     
     def __ft__(moi):
-        return P("%d" % moi.v)
+        if moi.v < 40 :
+            restr = "VERY BRIGHT"
+        elif moi.v < 800 :
+            restr = "BRIGH"
+        elif moi.v < 2000 :
+            restr = "LIGHT"
+        elif moi.v < 3200 :
+            restr = "DIM"
+        else :
+            restr = "DARK"
+
+        return P(restr)
         
 
 @dataclass
@@ -21,6 +33,7 @@ class LedState :
         
         return Img(src=sauce, style="width: 20%")
 
+
 app = FastHTML(exts='ws')
 rt  = app.route
 luxdb = database("lux.db")
@@ -33,6 +46,13 @@ ledstate = luxdb.create(LedState, pk="k")
 
 val = 0
 
+musique_fux = """
+function sendMusiqueCommand(choise) {
+    fetch(`/musique/${choise}`)
+    console.log("cmd envoyé", choise)
+}
+"""
+
 head =   Head(
     Title("ioc awesome webpage!"),
     Meta(charset="UTF-8"),
@@ -44,33 +64,37 @@ body = Body(
       Div(
         Img(src="/img/iocawesomesite.png", style="width: 100%"),
       ),
+      Script(musique_fux),
       Div(
         # H2("DJ !"),
-        Img(src="/img/dj.png", style="width: 100%"),
+        #Img(src="/img/dj.png", style="width: 100%"),
         Select(
-          Option("Megalovania - Undertale", value="1"),
-          Option("some other song", value="2"),
-          Option("yet another song", value="3"),
-          size=3
+          Option("Megalovania - Undertale", value="0"),
+          Option("Mario Theme Song", value="1"),
+          Option("Evangelion Theme Song", value="2"),
+          Option("Stop", value="4"),
+          onchange="sendMusiqueCommand(this.value)",
+          size=4,
         )
       ),
       Div(
-        Div(
+        #Div(
           # H2("lux"),
-          Img(src="/img/lux.png", style="width: 100%"),
-        ),
+          #Img(src="/img/lux.png", style="width: 100%"),
+        #),
         Div(
           # H3("Led State"),
-          Img(src="img/ledstate.png", style="width: 100%"),
+          #Img(src="img/ledstate.png", style="width: 100%"),
           Div(ledstate(where="k=1")[0], id="led-state"),
-          style="height: 50%; width: 50%; float:left"
+          style="flex: 33.3%; padding: 5px"
         ),
         Div(
           # H3("is it day yet ?"),
-          Img(src="img/isitdayyet.png", style="width: 100%"),
+          #Img(src="img/isitdayyet.png", style="width: 100%"),
           Div(luxlevel(where="k=1")[0], id="lux-level"),
-          style="height: 50%; width: 50%; float:left"
-        )
+          style="flex: 33.3%; padding: 5px"
+        ),
+        style="display: flex"
       ),
       cls="container"
     )
@@ -137,6 +161,18 @@ style = Style(
 @app.get("/{fname:path}.{ext:static}")
 def static(fname:str, ext:str): return FileResponse(f'{fname}.{ext}')
 
+@app.get("/musique/{song}")
+def handle_select(song: str):
+    print("musique: ", song)
+    mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    mqttc.on_connect = lambda a, b, d, e, f, g : None
+    mqttc.on_message = lambda a, b, d : None
+    mqttc.connect("localhost", 1883, 60)
+    mqttc.publish("musica", song)
+    mqttc.disconnect()
+
+
+
 @rt("/")
 def get():
     return Main(head, body, style, hx_ext='ws', ws_connect='/ws')
@@ -165,7 +201,4 @@ async def ws(op:str, payload: str) :
             await u(Div(luxlevel(where="k=1")[0], id="lux-level"))
     else :
         return
-    
-    
 
-serve()
