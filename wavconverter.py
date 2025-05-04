@@ -2,7 +2,7 @@ import numpy as np
 import wave
 import scipy.fftpack
 
-file_path = "undertale-8bit-48000hz.wav"
+file_path = "Mario_Theme_Song.wav"
 with wave.open(file_path, "rb") as wf:
     rate = wf.getframerate()
     nframes = wf.getnframes()
